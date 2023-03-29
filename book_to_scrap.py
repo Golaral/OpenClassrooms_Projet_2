@@ -70,12 +70,12 @@ for page in range(1, 51):
         image_url = "http://books.toscrape.com/" + book.select("div.image_container img")[0]["src"]
         image_response = requests.get(image_url)
         image_filename = image_url.split("/")[-1]
-        # directory = "book_images"
-        # if not os.path.exists(directory):
-        #     os.makedirs(directory)
-        # image_path = os.path.join(directory, image_filename)
-        # with open(image_path, 'wb') as f:
-        #     f.write(image_response.content)
+        directory = "book_images"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        image_path = os.path.join(directory, image_filename)
+        with open(image_path, 'wb') as f:
+            f.write(image_response.content)
 
         # Ajouter les informations à la liste des données
         data.append([product_page_url, upc, title, price_including_tax, price_excluding_tax, number_available, description, category, review_rating, image_filename])
