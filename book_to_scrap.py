@@ -3,71 +3,49 @@ from bs4 import BeautifulSoup
 import csv
 import os
 
-# La page d'accueil du site
-url = "http://books.toscrape.com/"
+data_title = []
+data_books = []
 
-# Obtenir le contenu de la page
-response = requests.get(url)
+#parcours des pages
+for i in range (1,51):
+    # URL de la page produit à scraper
+    url = f"http://books.toscrape.com/catalogue/page-{i}.html"
 
-# Analyser le contenu avec BeautifulSoup
-soup = BeautifulSoup(response.content, 'html.parser')
+    # Obtenir le contenu de la page
+    response = requests.get(url)
 
-# Extraire les informations de tous les livres sur toutes les pages
-data = []
-for page in range(1, 51):
-    page_url = f"http://books.toscrape.com/catalogue/page-{page}.html"
-    print(page)
-    page_response = requests.get(page_url)
-    page_soup = BeautifulSoup(page_response.content, 'html.parser')
-    books = page_soup.select("article.product_pod")
-    for book in books:
-        # Extraire l'URL de la page produit
-        product_page_url = "http://books.toscrape.com/catalogue/" + book.h3.a["href"]
+    # Analyser le contenu avec BeautifulSoup
+    soup = BeautifulSoup(response.content, 'html.parser')
+    #parcours des livres
+    for j in range (1,21):
+        #stockage des titres et scraping des urls des livres
+        title = soup.select_one(f"#default > div > div > div > div > section > div:nth-child(2) > ol > li:nth-child({j}) > article > h3 > a")['title']
+        url_books = "http://books.toscrape.com/catalogue/" + soup.select_one(f"#default > div > div > div > div > section > div:nth-child(2) > ol > li:nth-child({j}) > article > h3 > a")["href"]
+        
+        
+        response = requests.get(url_books)
+        soup2 = BeautifulSoup(response.content, 'html.parser')
 
-        # Extraire le code universel de produit (UPC)
-        table = book.select("table")
-        if table:
-            rows = table[0].select("tr")
-            upc = rows[0].select("td")[0].get_text()
-        else:
-            upc = ""
-        # Extraire le titre
-        title = book.h3.a["title"]
+        #stockage des infos du tableaux
+        value = soup2.find_all("td")
+        upc = value[0].get_text()
+        price_excl_tax = value[2].get_text()
+        price_incl_tax = value[3].get_text()
+        availability = value[5].get_text()
+        review_rating = value[6].get_text()
 
-        # Extraire le prix incluant la taxe
-        table = book.select("table")
-        if table:
-            rows = table[0].select("tr")
-            price_including_tax = rows[3].select("td")[0].get_text()
-        else:
-            price_including_tax = ""
+        #scraping de la catégorie
+        category = soup2.select_one("#default > div > div > ul > li:nth-child(3) > a").get_text()
 
-        # Extraire le prix excluant la taxe
-        if table:
-            price_excluding_tax = rows[2].select("td")[0].get_text()
-        else:
-            price_excluding_tax = ""
+        #scraping de la description des pages et vérification s'il y en a bien une
+        if soup2.select_one("#content_inner > article > p"):
+            product_desc = soup2.select_one("#content_inner > article > p").get_text()
+        else :
+            pass
 
-        # Extraire le nombre d'exemplaires disponibles
-        if table:
-            number_available = rows[5].select("td")[0].get_text()
-        else:
-            number_available = ""
 
-        # Extraire la description du produit
-        response = requests.get(product_page_url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        description = soup.select("article.product_page > p")
-        description = description[0].get_text() if description else ""
-
-        # Extraire la catégorie du produit
-        category = soup.select("ul.breadcrumb > li")[2].a.get_text()
-
-        # Extraire la note de critique du produit
-        review_rating = soup.select("div.product_main > p.star-rating")[0].get("class")[1]
-
-        # Extraire l'URL de l'image et enregistrer localement
-        image_url = "http://books.toscrape.com/" + book.select("div.image_container img")[0]["src"]
+        # Extraction de l'URL de l'image et enregistrement en local
+        image_url = "http://books.toscrape.com/" + soup2.select_one("#product_gallery > div > div > div > img")["src"]
         image_response = requests.get(image_url)
         image_filename = image_url.split("/")[-1]
         directory = "book_images"
@@ -78,11 +56,13 @@ for page in range(1, 51):
             f.write(image_response.content)
 
         # Ajouter les informations à la liste des données
-        data.append([product_page_url, upc, title, price_including_tax, price_excluding_tax, number_available, description, category, review_rating, image_filename])
+        data_books.append([url_books, upc, title, price_excl_tax, price_incl_tax, availability, review_rating, category, product_desc, image_filename])
+
+
 
 # Écrire les données dans un fichier CSV
 with open('books.csv', 'w', newline='', encoding='utf-8') as csv_file:
     writer = csv.writer(csv_file)
-    writer.writerow(['product_page_url', 'universal_product_code (upc)', 'title', 'price_including_tax', 'price_excluding_tax', 'number_available', 'product_description', 'category', 'review_rating', 'image_url'])
-    for book_data in data:
+    writer.writerow(['product_page_url', 'universal_product_code (upc)', 'title', 'price_excluding_tax', 'price_including_tax', 'number_available', 'review rating', 'category', 'product desc', 'image_url'])
+    for book_data in data_books:
         writer.writerow(book_data)
